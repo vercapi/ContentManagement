@@ -9,16 +9,29 @@ class Document:
     """
     
     def __init__(self, doc, uri, language, user, groups):
+		"""
+		@param doc the document which can be a structure itself
+		@param uri The name of the document
+		@param language The language you want the document to be in
+		@param user the user that is creating the file
+		@param groups the security groups for this document
+		"""
         self.__json = doc
         self.uri = uri
         self.__metadata = dict(createdate=datetime.utcnow(), creator=user, active=True, uri=self.uri, language=language, groups=groups)
         
     @property
     def document(self):
+		"""
+		Get the json of the document (not the metadata)
+		"""
         return self.__json
         
     @property
     def metadata(self):
+		"""
+		Get the metadata of the document (not the document itslef)
+		"""
         return self.__metadata
         
 class User:
@@ -27,6 +40,9 @@ class User:
     """
     
     def __init__(self, user):
+		"""
+		@param user The username
+		"""
         if type(user) == str:
             self.__username = user
             self.__groups = list()
@@ -36,17 +52,29 @@ class User:
     
     @property
     def username(self):
+		"""
+		@return the username
+		"""
         return self.__username
         
     @property
     def groups(self):
+		"""
+		@param the groups this user is part of
+		"""
         return self.__groups
         
     @property
     def document(self):
+		"""
+		@return the document  that reprsents the user (document as in mongodb document store)
+		"""
         return dict(groups=self.__groups, username=self.__username)
         
     def addGroup(self, group, permissions):
+		"""
+		add a group with permissions to the user
+		"""
         current = {"groupname":group, "permissions":permissions}
         self.__groups.append(current)
     
@@ -58,17 +86,26 @@ class DocumentStore:
     """
     
     def __init__(self, host, port):
+		"""
+		Create connection to host:port
+		"""
         connection = MongoClient(host,port )
         self.db = connection.test_database
         self.collection = self.db.cms.nodes
         self.ctxCollection = self.db.csm.context
         
     def getAllByURI(self, uri, language):
+		"""
+		Get all documents for uri by language
+		"""
         results = self.collection.find({"metadata.uri":uri}).sort('metadata.version', pymongo.ASCENDING)
         l = list(results)
         return l
         
     def getLastByURI(self, uri, language):
+		"""
+		Get latest version of document for uri by language
+		"""
         result = self.collection.find_one({"metadata.uri":uri, "metadata.active":True})
         return result
     
@@ -78,6 +115,9 @@ class DocumentStore:
             pprint(item)
         
     def getBySearch(self, username, search=None, language=None):
+		"""
+		Search as username for the searchstring and return only in language
+		"""
         #We are only interested in active data
         searchString = [{"metadata.active":True}]
         
@@ -101,6 +141,9 @@ class DocumentStore:
         return cur
         
     def getRoles(self, username, permission):
+		"""
+		@return the roles where username has permission
+		"""
         user = self.getUser(username)
         curGroups = list()
         for group in user.groups:
@@ -133,6 +176,9 @@ class DocumentStore:
         return id
         
     def createUser(self, user):
+		"""
+		Create a new user
+		"""
         existingUser = self.getUser(user.username)
         id = None
         if existingUser == None:
@@ -142,6 +188,9 @@ class DocumentStore:
         return id
     
     def getUser(self, username):
+		"""
+		Get document of user with username
+		"""
         user = None
         document = self.ctxCollection.find_one({"username":username})
         if document != None:
@@ -149,11 +198,15 @@ class DocumentStore:
         return user
     
     def updateUser(self, user):
+		"""
+		update user with data found in the user obj
+		"""
         id = None
         self.ctxCollection.update({"username":user.username}, {"$set": {"groups":user.groups}})
         
-        
-
+ 
+### TEST CODE ### 
+#ds = DocumentStore('localhost', 27017)
 #conv = parse.convertor(html)
 #dct = conv.convert()
 
@@ -164,8 +217,6 @@ class DocumentStore:
 #json1 = {"attributes": [{"tag":"green"}, {"tag":"square"}, {"tag":"legacay"}]}
 #json2 = {"attributes": [{"tag":"red"}, {"tag":"round"}, {"tag":"legacay"}]}
 #json3 = {"attributes": [{"tag":"red"}, {"tag":"square"}, {"tag":"new"}]}
-
-ds = DocumentStore('localhost', 27017)
 #doc = Document(json1, '/research/tagR.html', "nl", "Frank")
 #ds.save(doc)
 #doc = Document(json2, '/research/tagS.html', "nl", "Frank")
@@ -176,37 +227,10 @@ ds = DocumentStore('localhost', 27017)
 #ds.getBySearch({"document.attributes": {'$all': ['red', 'square']}})
 #ds.getBySearch({"document.attributes": {'$elemMatch' : {'tag':"red", 'tag':"round"}}})
 
-
-#start = datetime.utcnow()
-#for i in range(1000):
-#    for j in range(100):
-#        json = {"attributes": list({"green"+str(j), "square"+str(j), "legacay"+str(j)})}
-#        doc = Document(json, '/research/tag'+str(i)+str(j)+'.html', "nl", "Frank")
-#        ds.save(doc)
-        
-#end = datetime.utcnow()
-#print(end-start) #7:36.926135
-
+## INDEXES ##
 #ds.collection.ensure_index([("metadata.uri",pymongo.ASCENDING), ("metadata.active", pymongo.ASCENDING)])
+
+## USERS ##
 #ds.db.create_collection("cms.context")
 #user = User('Frank')
 #user.addGroup("public", ["r","w","d"])
-
-#for i in range(100):
-#    for j in range(10):
-#        json = {"attributes": "Testing itteration "+str(i)+str(j)}
-#        groups = list()
-#        if j%2 == 0:
-#            groups.append("public")
-#            if i%2 == 0:
-#                groups.append("private")
-#            else:
-#                groups.append("secure")
-#        else:
-#        groups.append("confidential")
-#            if i%2 == 0:
-#                groups.append("private")
-#            else:
-#                groups.append("public")
-#        doc = Document(json, '/research/tag'+str(i)+str(j)+'.html', "nl", "Frank", groups)
-#        ds.save(doc)
